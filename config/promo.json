@@ -1,0 +1,20 @@
+{
+    "HAPPY_HOUR": {
+        "nama": "Promo Happy Hour",
+        "deskripsi": "Diskon otomatis Rp 30.000\/jam saat sepi (Senin-Jumat, 08:00 - 15:00).",
+        "potongan": 30000,
+        "status": "1"
+    },
+    "KEMERDEKAAN": {
+        "nama": "Promo Kemerdekaan RI",
+        "deskripsi": "Potongan harga spesial Rp 17.000 untuk menyambut Hari Kemerdekaan.",
+        "potongan": 17000,
+        "status": "0"
+    },
+    "AKHIR_TAHUN": {
+        "nama": "Year End Sale",
+        "deskripsi": "Diskon besar-besaran akhir tahun sebesar Rp 50.000 per transaksi.",
+        "potongan": 50000,
+        "status": "0"
+    }
+}

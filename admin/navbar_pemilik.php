@@ -27,6 +27,8 @@ if ($jumlah_tertunda > 0) {
             <a href="data_transaksi.php" class="nav-link-custom <?php echo $halaman_aktif == 'data_transaksi.php' ? 'active fw-bold' : ''; ?>">🛒 Data Transaksi <?php echo $badge_html; ?></a>
             <a href="lapangan.php" class="nav-link-custom <?php echo $halaman_aktif == 'lapangan.php' ? 'active fw-bold' : ''; ?>">🏟️ Kelola Lapangan</a>
             <a href="jadwal.php" class="nav-link-custom <?php echo $halaman_aktif == 'jadwal.php' ? 'active fw-bold' : ''; ?>">🗓️ Kelola Jadwal</a>
+            <!-- Menu Pengaturan Promo yang baru disisipkan -->
+            <a href="pengaturan_promo.php" class="nav-link-custom <?php echo $halaman_aktif == 'pengaturan_promo.php' ? 'active fw-bold' : ''; ?>">🏷️ Pengaturan Promo</a>
         </div>
 
         <div class="d-flex align-items-center gap-3" style="position: relative; z-index: 60;">

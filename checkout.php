@@ -1,7 +1,7 @@
 <?php
 /**
  * File: checkout.php
- * Deskripsi: Halaman Ringkasan Pesanan (Dengan Logika Promo Jam Sepi / Happy Hour)
+ * Deskripsi: Halaman Ringkasan Pesanan (Dengan Logika Promo Dinamis JSON)
  */
 session_start();
 require_once "config/database.php";
@@ -41,34 +41,58 @@ $pakai_voucher = isset($_POST['pakai_voucher']) ? true : false;
 $hari_ini = date('m-d');
 
 // =========================================================================
-// 1. LOGIKA PROMO JAM SEPI (HAPPY HOUR) - DISKON RP 30.000/JAM
+// 1. TARIK STATUS PROMO AKTIF DARI FILE JSON
 // =========================================================================
-$hari_main = date('N', strtotime($tanggal_sewa)); // Angka 1 (Senin) sampai 7 (Minggu)
-$diskon_jam_sepi_per_jam = 30000;
-$total_diskon_sepi = 0;
-$jumlah_jam_sepi = 0;
+$json_promo_file = 'config/promo.json';
+$promo_data = [];
+if (file_exists($json_promo_file)) {
+    $promo_data = json_decode(file_get_contents($json_promo_file), true);
+}
 
-// Sistem mengecek satu per satu jam yang dipilih oleh pelanggan
-foreach ($jadwal_dipilih as $id_j) {
-    $stmt_cek_jam = $db->prepare("SELECT jam_mulai FROM jadwal WHERE id_jadwal = ?");
-    $stmt_cek_jam->execute([$id_j]);
-    $jam_mulai_angka = (int) substr($stmt_cek_jam->fetchColumn(), 0, 2);
+// =========================================================================
+// 2. LOGIKA PROMO HAPPY HOUR
+// =========================================================================
+if (isset($promo_data['HAPPY_HOUR']) && $promo_data['HAPPY_HOUR']['status'] == '1') {
+    $hari_main = date('N', strtotime($tanggal_sewa)); 
+    $diskon_jam_sepi_per_jam = (int)$promo_data['HAPPY_HOUR']['potongan'];
+    $total_diskon_sepi = 0;
+    $jumlah_jam_sepi = 0;
 
-    // ATURAN: Jika hari Senin-Jumat (1 s.d 5) DAN jam main antara 08:00 s.d 15:00
-    if ($hari_main >= 1 && $hari_main <= 5 && $jam_mulai_angka >= 8 && $jam_mulai_angka <= 15) {
-        $total_diskon_sepi += $diskon_jam_sepi_per_jam;
-        $jumlah_jam_sepi++;
+    foreach ($jadwal_dipilih as $id_j) {
+        $stmt_cek_jam = $db->prepare("SELECT jam_mulai FROM jadwal WHERE id_jadwal = ?");
+        $stmt_cek_jam->execute([$id_j]);
+        $jam_mulai_angka = (int) substr($stmt_cek_jam->fetchColumn(), 0, 2);
+
+        // Syarat: Senin-Jumat & Jam 08:00-15:00
+        if ($hari_main >= 1 && $hari_main <= 5 && $jam_mulai_angka >= 8 && $jam_mulai_angka <= 15) {
+            $total_diskon_sepi += $diskon_jam_sepi_per_jam;
+            $jumlah_jam_sepi++;
+        }
+    }
+
+    if ($jumlah_jam_sepi > 0) {
+        $total_diskon += $total_diskon_sepi;
+        $pesan_promo[] = "🔥 " . $promo_data['HAPPY_HOUR']['nama'] . " ($jumlah_jam_sepi Jam) (-Rp " . number_format($total_diskon_sepi, 0, ',', '.') . ")";
     }
 }
 
-// Jika ada jam sepi yang terdeteksi, masukkan ke struk potongan harga
-if ($jumlah_jam_sepi > 0) {
-    $total_diskon += $total_diskon_sepi;
-    $pesan_promo[] = "🔥 Promo Happy Hour ($jumlah_jam_sepi Jam) (-Rp " . number_format($total_diskon_sepi, 0, ',', '.') . ")";
+// =========================================================================
+// 3. LOGIKA PROMO LAINNYA (Event Khusus)
+// =========================================================================
+if (isset($promo_data['KEMERDEKAAN']) && $promo_data['KEMERDEKAAN']['status'] == '1') {
+    $diskon_merdeka = (int)$promo_data['KEMERDEKAAN']['potongan'];
+    $total_diskon += $diskon_merdeka;
+    $pesan_promo[] = "🇮🇩 " . $promo_data['KEMERDEKAAN']['nama'] . " (-Rp " . number_format($diskon_merdeka, 0, ',', '.') . ")";
+}
+
+if (isset($promo_data['AKHIR_TAHUN']) && $promo_data['AKHIR_TAHUN']['status'] == '1') {
+    $diskon_akhir_tahun = (int)$promo_data['AKHIR_TAHUN']['potongan'];
+    $total_diskon += $diskon_akhir_tahun;
+    $pesan_promo[] = "🎉 " . $promo_data['AKHIR_TAHUN']['nama'] . " (-Rp " . number_format($diskon_akhir_tahun, 0, ',', '.') . ")";
 }
 
 // =========================================================================
-// 2. LOGIKA REWARD ULANG TAHUN & VIP
+// 4. LOGIKA REWARD ULANG TAHUN & VIP
 // =========================================================================
 if ($pelanggan['is_vip'] == 1 && !empty($pelanggan['tanggal_lahir'])) {
     if (date('m-d', strtotime($pelanggan['tanggal_lahir'])) == $hari_ini) {
@@ -84,7 +108,7 @@ if ($pelanggan['is_vip'] == 1) {
 }
 
 // =========================================================================
-// 3. LOGIKA VOUCHER LOYALITAS
+// 5. LOGIKA VOUCHER LOYALITAS
 // =========================================================================
 if ($pakai_voucher && $pelanggan['voucher_50k'] > 0) {
     $total_diskon += 50000;

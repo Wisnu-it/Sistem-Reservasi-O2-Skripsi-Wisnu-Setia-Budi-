@@ -1,8 +1,7 @@
 <?php
-/**
- * File: reservasi.php
- * Deskripsi: Halaman Formulir Multi-Step Reservasi Lapangan dengan Kalkulasi Diskon Real-Time
- */
+// * File: reservasi.php
+// * Deskripsi: Halaman Formulir Multi-Step Reservasi Lapangan dengan Kalkulasi Diskon Real-Time
+
 ob_start();
 session_start();
 date_default_timezone_set('Asia/Makassar');
@@ -23,6 +22,18 @@ $id_pengguna = $_SESSION['id_pengguna'];
 $stmt_user = $db->prepare("SELECT is_vip FROM pengguna WHERE id_pengguna = ?");
 $stmt_user->execute([$id_pengguna]);
 $is_vip = $stmt_user->fetchColumn() ?: 0;
+
+// ============================================================================
+// AMBIL STATUS PROMO HAPPY HOUR DARI FILE JSON
+// ============================================================================
+$json_promo_file = 'config/promo.json';
+$status_happy_hour = 0;
+if (file_exists($json_promo_file)) {
+    $promo_data = json_decode(file_get_contents($json_promo_file), true);
+    if (isset($promo_data['HAPPY_HOUR']) && $promo_data['HAPPY_HOUR']['status'] == '1') {
+        $status_happy_hour = 1;
+    }
+}
 
 // Mengambil master data lapangan
 $query_lapangan = "SELECT * FROM lapangan ORDER BY nama_lapangan ASC";
@@ -146,6 +157,7 @@ require_once "layout/header.php";
                 </div>
             </div>
         </div>
+
     </div>
 </div>
 
@@ -153,6 +165,8 @@ require_once "layout/header.php";
     const serverTanggalHariIni = "<?php echo date('Y-m-d'); ?>";
     const serverJamSekarangWita = <?php echo (int)date('H'); ?>;
     const isVip = <?php echo $is_vip; ?>; // Variabel VIP dilempar dari PHP ke JS
+    const isHappyHourActive = <?php echo $status_happy_hour; ?>; // Status Promo JSON dilempar ke JS
+
     let hargaPerJam = 0;
 
     async function loadJadwalAJAX() {
@@ -169,6 +183,7 @@ require_once "layout/header.php";
         try {
             const response = await fetch(`/o2futsal/actions/get_jadwal.php?tanggal=${tgl}&id_lapangan=${lap}`);
             if (!response.ok) throw new Error('Gagal memuat data dari server');
+            
             const data = await response.json();
             
             let htmlHTML = '';
@@ -180,7 +195,7 @@ require_once "layout/header.php";
 
             if(data.is_libur) {
                 htmlHTML = `<div class="col-12 text-center py-5 border border-danger rounded-3" style="background-color: rgba(220, 53, 69, 0.1);">
-                                <h3 class="text-danger fw-bold mb-2">🚫 TUTUP / LIBUR</h3>
+                                <h3 class="text-danger fw-bold mb-2"><i class="bi bi-x-circle"></i> TUTUP / LIBUR</h3>
                                 <p class="text-secondary mb-0">Alasan: ${data.keterangan}</p>
                             </div>`;
                 btnSubmit.disabled = true;
@@ -195,8 +210,8 @@ require_once "layout/header.php";
                     // ==============================================================
                     // LOGIKA UI PROMO (Senin-Jumat, 08:00 - 15:00)
                     // ==============================================================
-                    let isHappyHour = (hariMain >= 1 && hariMain <= 5 && jamSlot >= 8 && jamSlot <= 15);
-                    let promoBadge = isHappyHour ? `<br><small class="text-warning fw-bold" style="font-size:11px;">🔥 Promo Happy Hour!</small>` : '';
+                    let isHappyHour = (isHappyHourActive == 1 && hariMain >= 1 && hariMain <= 5 && jamSlot >= 8 && jamSlot <= 15);
+                    let promoBadge = isHappyHour ? `<br><small class="text-warning fw-bold" style="font-size:11px;"><i class="bi bi-stars"></i> Promo Happy Hour!</small>` : '';
 
                     if (item.is_booked || sudahLewat) {
                         htmlHTML += `
@@ -217,6 +232,7 @@ require_once "layout/header.php";
                     }
                 });
             }
+
             container.innerHTML = htmlHTML;
             kalkulasiTotal();
 
@@ -303,7 +319,7 @@ require_once "layout/header.php";
             let jam = parseInt(cb.getAttribute('data-jam'));
 
             // 1. Cek Diskon Happy Hour (Senin=1 s/d Jumat=5, Jam 08 s/d 15)
-            if (hariMain >= 1 && hariMain <= 5 && jam >= 8 && jam <= 15) {
+            if (isHappyHourActive == 1 && hariMain >= 1 && hariMain <= 5 && jam >= 8 && jam <= 15) {
                 totalDiskon += 30000;
             }
 
